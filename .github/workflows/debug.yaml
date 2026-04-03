@@ -1,0 +1,32 @@
+name: Debug Build OpenFAST
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  debug-build: # Renamed job
+    name: Windows Debug Build
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Intel oneAPI
+      uses: fortran-lang/setup-fortran@v1
+      with:
+        compiler: intel-classic
+        version: '2021.4'
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Run Debug Script
+      shell: cmd
+      run: |
+        rename_this_to_match_your_file.bat
+      env:
+        VS_VER: '2022'
