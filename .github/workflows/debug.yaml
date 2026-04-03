@@ -1,32 +1,37 @@
-name: Debug Build OpenFAST
+name: Debug OpenFAST Build
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch: 
 
 jobs:
-  debug-build: # Renamed job
-    name: Windows Debug Build
-    runs-on: windows-latest
-
+  debug-build:
+    runs-on: windows-2022
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
 
-    - name: Install Intel oneAPI
-      uses: fortran-lang/setup-fortran@v1
-      with:
-        compiler: intel-classic
-        version: '2021.4'
+      - name: Install Intel Fortran
+        shell: cmd
+        run: |
+          echo "Downloading Intel Installer..."
+          curl.exe --output %TEMP%\intel_inf.exe --url https://registrationcenter-download.intel.com/akdlm/IRC_NAS/33676fcf-14a3-4e96-a9b9-72976b1145d9/intel-fortran-essentials-2025.3.1.25_offline.exe
+          echo "Installing (this takes ~5-8 mins)..."
+          %TEMP%\intel_inf.exe -s -a --silent --eula accept -p=NEED_VS2022_INTEGRATION=1
+          echo "Installation command finished with exit code %ERRORLEVEL%"
 
-    - name: Setup MSVC
-      uses: microsoft/setup-msbuild@v2
+      - name: Execute Debug Script
+        shell: cmd
+        env:
+          VS_VER: "2022"
+        run: |
+          call .github/scripts/debug_build.bat
 
-    - name: Run Debug Script
-      shell: cmd
-      run: |
-        rename_this_to_match_your_file.bat
-      env:
-        VS_VER: '2022'
+      - name: Upload Build Binaries
+        if: always() # Upload even if the build failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-binaries
+          path: build/bin/

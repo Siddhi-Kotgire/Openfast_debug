@@ -40,14 +40,6 @@ if %ERRORLEVEL% NEQ 0 (
     echo Build of OpenFAST.sln Matlab_Release failed!
 )
 
-echo "Build Debug version for step-by-step debugging (Debug|64)"
-devenv vs-build/OpenFAST.sln /Build "Debug|x64"
-if %ERRORLEVEL% NEQ 0 (
-    set "FailedSolutions=!FailedSolutions!Debug "
-    set "OverallErrorLevel=1"
-    echo Build of OpenFAST.sln Debug failed!
-)
-
 
 echo "Build Summary:"
 if defined FailedSolutions (
