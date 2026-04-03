@@ -1,37 +1,50 @@
-name: Debug OpenFAST Build
+name: OpenFAST Debugging Build
 
 on:
-  workflow_dispatch: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows you to run this manually from the Actions tab
 
 jobs:
-  debug-build:
-    runs-on: windows-2022
+  debug_build:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
-      - name: Install Intel Fortran
-        shell: cmd
-        run: |
-          echo "Downloading Intel Installer..."
-          curl.exe --output %TEMP%\intel_inf.exe --url https://registrationcenter-download.intel.com/akdlm/IRC_NAS/33676fcf-14a3-4e96-a9b9-72976b1145d9/intel-fortran-essentials-2025.3.1.25_offline.exe
-          echo "Installing (this takes ~5-8 mins)..."
-          %TEMP%\intel_inf.exe -s -a --silent --eula accept -p=NEED_VS2022_INTEGRATION=1
-          echo "Installation command finished with exit code %ERRORLEVEL%"
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gfortran libblas-dev liblapack-dev gdb tmate
 
-      - name: Execute Debug Script
-        shell: cmd
-        env:
-          VS_VER: "2022"
-        run: |
-          call .github/scripts/debug_build.bat
+    - name: Configure CMake (Debug Mode)
+      # We add extra Fortran flags to catch common bugs like array-out-of-bounds
+      run: |
+        cmake -B build -S . \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_Fortran_FLAGS="-g -fbacktrace -fcheck=all -ffpe-trap=zero,invalid,overflow"
 
-      - name: Upload Build Binaries
-        if: always() # Upload even if the build failed
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-binaries
-          path: build/bin/
+    - name: Build OpenFAST
+      run: cmake --build build --parallel $(nproc)
+
+    - name: Run Test with GDB
+      # Replace 'input_file.fst' with a small test case path
+      # This will run OpenFAST and, if it crashes, print the stack trace (bt)
+      run: |
+        cd build
+        gdb -ex "run" -ex "bt" -ex "quit" --args ./glue-codes/openfast/openfast ../reg_tests/InputFiles/Test01.fst
+      continue-on-error: true
+
+    - name: Interactive Debugging on Failure
+      # This step only triggers if any previous step fails.
+      # It provides an SSH link in the logs so you can log in and debug live.
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
